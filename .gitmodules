@@ -1,0 +1,10 @@
+[submodule "lib/forge-std"]
+	path = lib/forge-std
+	url = https://github.com/foundry-rs/forge-std
+
+[submodule "perpex-contracts/lib/openzeppelin-contracts"]
+	path = perpex-contracts/lib/openzeppelin-contracts
+	url = https://github.com/OpenZeppelin/openzeppelin-contracts
+[submodule "perpex-contracts/lib/solady"]
+	path = perpex-contracts/lib/solady
+	url = https://github.com/vectorized/solady
