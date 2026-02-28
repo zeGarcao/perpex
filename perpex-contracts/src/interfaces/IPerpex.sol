@@ -17,14 +17,22 @@ interface IPerpex {
         SHORT
     }
 
+    struct OpenInterest {
+        uint256 value; // 18 decimals (match chronicle prices)
+        uint256 tokens; // token's native decimals
+    }
+
     struct Position {
         address owner;
         address token;
-        uint256 collateral;
-        uint256 size;
-        uint256 sizeInTokens;
+        uint256 collateral; // 6 decimals (USDC)
+        uint256 size; // 18 decimals (match chronicle prices)
+        uint256 sizeInTokens; // token's native decimals
         PositionSide side;
+        bool isOpen;
     }
 
     function openPosition(address token, uint256 collateral, uint256 size, PositionSide side) external returns (bytes32);
+
+    function pnl() external view returns (int256);
 }
