@@ -89,4 +89,8 @@ contract Pool is IPool, ERC4626 {
 
         return Math.min(availableShares, ownerBalance);
     }
+
+    function _decimalsOffset() internal pure override returns (uint8) {
+        return 12;
+    }
 }
