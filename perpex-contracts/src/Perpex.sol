@@ -2,6 +2,7 @@
 pragma solidity 0.8.34;
 
 import {IPerpex} from "./interfaces/IPerpex.sol";
+import {IPool} from "./interfaces/IPool.sol";
 import {ERC20, IERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
@@ -34,8 +35,6 @@ contract Perpex is IPerpex {
         external
         returns (bytes32 id)
     {
-        // TODO: ensure enough liquidity in the pool for desired size
-
         require(_allowedTokens.contains(token), "token not allowed");
 
         uint256 positionFee = Math.mulDiv(size, _positionFee, WAD * 1e12, Math.Rounding.Ceil);
@@ -73,7 +72,12 @@ contract Perpex is IPerpex {
         id = keccak256(abi.encode(msg.sender, position, block.chainid, ++_nonce));
         _positions[id] = position;
 
+        _openInterests[token][side].value += size;
+        _openInterests[token][side].tokens += sizeInTokens;
+
         emit PositionOpened(id, msg.sender);
+
+        IPool(_pool).reserveAssets(Math.ceilDiv(size, 1e12));
 
         IERC20(_usdc).safeTransferFrom(msg.sender, _pool, positionFee);
         IERC20(_usdc).safeTransferFrom(msg.sender, address(this), netCollateral);
@@ -98,6 +102,14 @@ contract Perpex is IPerpex {
             int256 shortPnL = shortOI.value.toInt256() - shortAppreciation.toInt256();
 
             pnl_ += longPnL + shortPnL;
+        }
+    }
+
+    function openInterest() external view returns (uint256 oi) {
+        for (uint256 i = 0; i < _allowedTokens.length(); ++i) {
+            address token = _allowedTokens.at(i);
+            oi += _openInterests[token][PositionSide.LONG].value;
+            oi += _openInterests[token][PositionSide.SHORT].value;
         }
     }
 }

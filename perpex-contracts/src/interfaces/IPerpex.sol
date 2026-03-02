@@ -35,4 +35,6 @@ interface IPerpex {
     function openPosition(address token, uint256 collateral, uint256 size, PositionSide side) external returns (bytes32);
 
     function pnl() external view returns (int256);
+
+    function openInterest() external view returns (uint256);
 }
