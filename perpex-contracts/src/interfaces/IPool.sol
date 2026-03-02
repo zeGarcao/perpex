@@ -8,6 +8,10 @@ interface IPool {
     event AssetsReserved(uint256 assets);
     event AssetsReleased(uint256 assets);
 
+    error POOL__ONLY_PERPEX();
+    error POOL__MAX_UTILIZATION_EXCEEDED();
+    error POOL__INVALID_RELEASE_AMOUNT();
+
     function reserveAssets(uint256 assets) external;
 
     function releaseAssets(uint256 assets) external;

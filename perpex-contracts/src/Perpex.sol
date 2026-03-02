@@ -35,19 +35,19 @@ contract Perpex is IPerpex {
         external
         returns (bytes32 id)
     {
-        require(_allowedTokens.contains(token), "token not allowed");
+        require(_allowedTokens.contains(token), PERPEX__TOKEN_NOT_ALLOWED());
 
         uint256 positionFee = Math.mulDiv(size, _positionFee, WAD * 1e12, Math.Rounding.Ceil);
-        require(positionFee != 0, "invalid position fee");
-        require(collateral > positionFee, "collateral must be greater than position fee");
+        require(positionFee != 0, PERPEX__INVALID_POSITION_SIZE());
+        require(collateral > positionFee, PERPEX__INSUFFICIENT_COLLATERAL());
 
         uint256 netCollateral = collateral - positionFee;
-        require(size >= netCollateral * 1e12, "invalid size");
+        require(size >= netCollateral * 1e12, PERPEX__INVALID_POSITION_SIZE());
 
         uint256 usdcPriceInUsd = IChronicleOracle(_oracles[_usdc]).read();
         uint256 collateralInUsd = Math.mulDiv(netCollateral * 1e12, usdcPriceInUsd, WAD, Math.Rounding.Floor);
         uint256 leverage = Math.mulDiv(size, WAD, collateralInUsd, Math.Rounding.Ceil);
-        require(leverage <= _maxLeverage, "max leverage exceeded");
+        require(leverage <= _maxLeverage, PERPEX__MAX_LEVERAGE_EXCEEDED());
 
         uint256 tokenPriceInUsd = IChronicleOracle(_oracles[token]).read();
         uint256 sizeInTokens;

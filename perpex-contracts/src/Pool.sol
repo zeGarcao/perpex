@@ -21,7 +21,7 @@ contract Pool is IPool, ERC4626 {
     constructor(address asset_) ERC4626(IERC20(asset_)) ERC20("Perpex Pool Token", "PPT") {}
 
     function reserveAssets(uint256 assets) external {
-        require(msg.sender == _perpex, "only perpex can reserve assets");
+        require(msg.sender == _perpex, POOL__ONLY_PERPEX());
 
         _reservedAssets += assets;
 
@@ -36,15 +36,15 @@ contract Pool is IPool, ERC4626 {
 
         require(
             _reservedAssets <= Math.mulDiv(balance, _maxUtilization, WAD * 1e12, Math.Rounding.Floor),
-            "max utilization exceeded"
+            POOL__MAX_UTILIZATION_EXCEEDED()
         );
 
         emit AssetsReserved(assets);
     }
 
     function releaseAssets(uint256 assets) external {
-        require(msg.sender == _perpex, "only perpex can release assets");
-        require(assets <= _reservedAssets, "cannot release more than reserved");
+        require(msg.sender == _perpex, POOL__ONLY_PERPEX());
+        require(assets <= _reservedAssets, POOL__INVALID_RELEASE_AMOUNT());
 
         _reservedAssets -= assets;
 

@@ -12,6 +12,11 @@ pragma solidity 0.8.34;
 interface IPerpex {
     event PositionOpened(bytes32 indexed id, address indexed owner);
 
+    error PERPEX__TOKEN_NOT_ALLOWED();
+    error PERPEX__INVALID_POSITION_SIZE();
+    error PERPEX__INSUFFICIENT_COLLATERAL();
+    error PERPEX__MAX_LEVERAGE_EXCEEDED();
+
     enum PositionSide {
         LONG,
         SHORT
