@@ -77,4 +77,16 @@ contract Pool is IPool, ERC4626 {
 
         return freeAssets - minRequiredAssets;
     }
+
+    function maxRedeem(address owner) public view override returns (uint256) {
+        uint256 availableAssets_ = availableAssets();
+        if (availableAssets_ == 0) {
+            return 0;
+        }
+
+        uint256 availableShares = _convertToShares(availableAssets_, Math.Rounding.Floor);
+        uint256 ownerBalance = balanceOf(owner);
+
+        return Math.min(availableShares, ownerBalance);
+    }
 }
