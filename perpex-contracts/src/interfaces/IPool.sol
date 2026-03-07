@@ -11,6 +11,7 @@ interface IPool {
     error POOL__ONLY_PERPEX();
     error POOL__MAX_UTILIZATION_EXCEEDED();
     error POOL__INVALID_RELEASE_AMOUNT();
+    error POOL__INVALID_RESERVE_AMOUNT();
 
     function reserveAssets(uint256 assets) external;
 

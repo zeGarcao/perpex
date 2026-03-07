@@ -7,12 +7,11 @@ import {ERC4626} from "@openzeppelin/contracts/token/ERC20/extensions/ERC4626.so
 import {ERC20, IERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
+import {FixedPointMathLib} from "@solady/utils/FixedPointMathLib.sol";
 
 contract Pool is IPool, ERC4626 {
     using SafeCast for uint256;
     using SafeCast for int256;
-
-    uint256 private constant WAD = 1e18;
 
     address private _perpex;
     uint256 private _reservedAssets;
@@ -22,29 +21,27 @@ contract Pool is IPool, ERC4626 {
 
     function reserveAssets(uint256 assets) external {
         require(msg.sender == _perpex, POOL__ONLY_PERPEX());
+        require(assets != 0, POOL__INVALID_RESERVE_AMOUNT());
 
         _reservedAssets += assets;
 
-        uint256 balance = ERC20(asset()).balanceOf(address(this)) * 1e12;
-        int256 pnl = IPerpex(_perpex).pnl();
+        uint256 balance = ERC20(asset()).balanceOf(address(this));
+        int256 pnl = IPerpex(_perpex).totalPnL();
 
-        if (pnl > balance.toInt256()) {
-            balance = 0;
-        } else if (pnl > 0) {
-            balance -= pnl.toUint256();
+        if (pnl > 0) {
+            uint256 pnlScaled = FixedPointMathLib.divUp(pnl.toUint256(), 1e12);
+
+            balance = pnlScaled >= balance ? 0 : balance - pnlScaled;
         }
 
-        require(
-            _reservedAssets <= Math.mulDiv(balance, _maxUtilization, WAD * 1e12, Math.Rounding.Floor),
-            POOL__MAX_UTILIZATION_EXCEEDED()
-        );
+        require(_reservedAssets <= FixedPointMathLib.mulWad(balance, _maxUtilization), POOL__MAX_UTILIZATION_EXCEEDED());
 
         emit AssetsReserved(assets);
     }
 
     function releaseAssets(uint256 assets) external {
         require(msg.sender == _perpex, POOL__ONLY_PERPEX());
-        require(assets <= _reservedAssets, POOL__INVALID_RELEASE_AMOUNT());
+        require(assets != 0 && assets <= _reservedAssets, POOL__INVALID_RELEASE_AMOUNT());
 
         _reservedAssets -= assets;
 
@@ -53,7 +50,7 @@ contract Pool is IPool, ERC4626 {
 
     function totalAssets() public view override returns (uint256) {
         int256 balance = ERC20(asset()).balanceOf(address(this)).toInt256() * 1e12;
-        int256 pnl = IPerpex(_perpex).pnl();
+        int256 pnl = IPerpex(_perpex).totalPnL();
 
         if (pnl > balance) {
             return 0;
@@ -68,8 +65,8 @@ contract Pool is IPool, ERC4626 {
             return balance;
         }
 
-        uint256 freeAssets = Math.min(balance - _reservedAssets, totalAssets());
-        uint256 minRequiredAssets = Math.mulDiv(_reservedAssets, WAD, _maxUtilization, Math.Rounding.Ceil);
+        uint256 freeAssets = FixedPointMathLib.min(balance - _reservedAssets, totalAssets());
+        uint256 minRequiredAssets = FixedPointMathLib.divWadUp(_reservedAssets, _maxUtilization);
 
         if (freeAssets <= minRequiredAssets) {
             return 0;
@@ -87,7 +84,7 @@ contract Pool is IPool, ERC4626 {
         uint256 availableShares = _convertToShares(availableAssets_, Math.Rounding.Floor);
         uint256 ownerBalance = balanceOf(owner);
 
-        return Math.min(availableShares, ownerBalance);
+        return FixedPointMathLib.min(availableShares, ownerBalance);
     }
 
     function _decimalsOffset() internal pure override returns (uint8) {
