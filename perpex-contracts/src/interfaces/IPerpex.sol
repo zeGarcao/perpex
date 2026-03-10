@@ -75,6 +75,12 @@ interface IPerpex {
      */
     event TokenRemoved(address indexed token);
 
+    /**
+     * @notice Emitted when the pool address is updated
+     * @param pool The new pool address
+     */
+    event PoolUpdated(address indexed pool);
+
     //////////////////////////////////////////////////////////////
     //                          ERRORS                          //
     //////////////////////////////////////////////////////////////

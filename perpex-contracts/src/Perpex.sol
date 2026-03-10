@@ -124,6 +124,18 @@ contract Perpex is IPerpex, Ownable {
     //////////////////////////////////////////////////////////////
 
     /**
+     * @notice Updates the pool contract address
+     * @param pool New pool address
+     */
+    function setPool(address pool) external onlyOwner {
+        require(pool != address(0), PERPEX__ZERO_ADDRESS());
+
+        _pool = pool;
+
+        emit PoolUpdated(pool);
+    }
+
+    /**
      * @notice Updates the minimum leverage requirement
      * @param minLeverage New minimum leverage value (18 decimals)
      */
