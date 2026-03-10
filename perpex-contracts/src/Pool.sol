@@ -85,7 +85,7 @@ contract Pool is IPool, ERC4626, AccessControl {
     }
 
     //////////////////////////////////////////////////////////////
-    //                   POSITION MANAGEMENT                    //
+    //                  LIQUIDITY MANAGEMENT                    //
     //////////////////////////////////////////////////////////////
 
     /// @inheritdoc IPool
