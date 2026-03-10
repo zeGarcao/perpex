@@ -24,8 +24,8 @@ contract Perpex is IPerpex, Ownable {
     //                        CONSTANTS                         //
     //////////////////////////////////////////////////////////////
 
-    /// @notice Maximum allowed liquidation threshold (80%)
-    uint256 private constant MAX_LIQUIDATION_THRESHOLD = 0.8e18;
+    /// @notice Maximum allowed liquidation threshold (85%)
+    uint256 private constant MAX_LIQUIDATION_THRESHOLD = 0.85e18;
 
     //////////////////////////////////////////////////////////////
     //                     STATE VARIABLES                      //
