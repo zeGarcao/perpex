@@ -30,6 +30,12 @@ interface IPool {
      */
     event MaxUtilizationUpdated(uint256 maxUtilization);
 
+    /**
+     * @notice Emitted when the Perpex contract address is updated
+     * @param perpex The new Perpex contract address
+     */
+    event PerpexUpdated(address indexed perpex);
+
     //////////////////////////////////////////////////////////////
     //                          ERRORS                          //
     //////////////////////////////////////////////////////////////

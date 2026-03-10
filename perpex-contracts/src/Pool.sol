@@ -73,6 +73,18 @@ contract Pool is IPool, ERC4626, AccessControl {
     //////////////////////////////////////////////////////////////
 
     /**
+     * @notice Updates the Perpex contract address
+     * @param perpex New Perpex contract address
+     */
+    function setPerpex(address perpex) external onlyRole(ADMIN_ROLE) {
+        require(perpex != address(0), POOL__ZERO_ADDRESS());
+
+        _perpex = perpex;
+
+        emit PerpexUpdated(perpex);
+    }
+
+    /**
      * @notice Updates the max utilization ratio
      * @param maxUtilization New max utilization ratio (18 decimals)
      */
