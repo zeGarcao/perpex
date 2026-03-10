@@ -35,7 +35,7 @@ contract Pool is IPool, ERC4626, AccessControl {
     //////////////////////////////////////////////////////////////
 
     /// @notice Address of the Perpex core contract
-    address private _perpex;
+    address public perpex;
 
     /// @notice Total assets currently reserved for open positions (6 decimals)
     uint256 private _reservedAssets;
@@ -49,23 +49,16 @@ contract Pool is IPool, ERC4626, AccessControl {
 
     /**
      * @notice Initializes the pool vault and role permissions
-     * @param perpex Address of the Perpex contract
      * @param asset_ Address of the vault underlying asset (USDC)
      * @param maxUtilization Initial max utilization ratio (18 decimals)
      */
-    constructor(address perpex, address asset_, uint256 maxUtilization)
-        ERC4626(IERC20(asset_))
-        ERC20("Perpex Pool Token", "PPT")
-    {
-        require(perpex != address(0), POOL__ZERO_ADDRESS());
+    constructor(address asset_, uint256 maxUtilization) ERC4626(IERC20(asset_)) ERC20("Perpex Pool Token", "PPT") {
         require(maxUtilization <= MAX_UTILIZATION, POOL__INVALID_MAX_UTILIZATION());
 
-        _perpex = perpex;
         _maxUtilization = maxUtilization;
 
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
         _grantRole(ADMIN_ROLE, msg.sender);
-        _grantRole(PERPEX_ROLE, perpex);
     }
 
     //////////////////////////////////////////////////////////////
@@ -74,14 +67,17 @@ contract Pool is IPool, ERC4626, AccessControl {
 
     /**
      * @notice Updates the Perpex contract address
-     * @param perpex New Perpex contract address
+     * @param perpex_ New Perpex contract address
      */
-    function setPerpex(address perpex) external onlyRole(ADMIN_ROLE) {
-        require(perpex != address(0), POOL__ZERO_ADDRESS());
+    function setPerpex(address perpex_) external onlyRole(ADMIN_ROLE) {
+        require(perpex_ != address(0), POOL__ZERO_ADDRESS());
 
-        _perpex = perpex;
+        _revokeRole(PERPEX_ROLE, perpex);
+        _grantRole(PERPEX_ROLE, perpex_);
 
-        emit PerpexUpdated(perpex);
+        perpex = perpex_;
+
+        emit PerpexUpdated(perpex_);
     }
 
     /**
@@ -107,7 +103,7 @@ contract Pool is IPool, ERC4626, AccessControl {
         _reservedAssets += assets;
 
         uint256 balance = ERC20(asset()).balanceOf(address(this));
-        int256 pnl = IPerpex(_perpex).totalPnL();
+        int256 pnl = IPerpex(perpex).totalPnL();
 
         if (pnl > 0) {
             uint256 pnlScaled = FixedPointMathLib.divUp(pnl.toUint256(), 1e12);
@@ -153,7 +149,7 @@ contract Pool is IPool, ERC4626, AccessControl {
     /// @inheritdoc ERC4626
     function totalAssets() public view override returns (uint256) {
         int256 balance = ERC20(asset()).balanceOf(address(this)).toInt256() * 1e12;
-        int256 pnl = IPerpex(_perpex).totalPnL();
+        int256 pnl = IPerpex(perpex).totalPnL();
 
         if (pnl > balance) {
             return 0;
