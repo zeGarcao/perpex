@@ -1,0 +1,16 @@
+openPosition.t.sol
+├── when token is not an allowed token
+│   └── it should revert with {PERPEX__TOKEN_NOT_ALLOWED} error
+└── when token is an allowed token
+    ├── when collateral is less than or equal to computed position fee
+    │   └── it should revert with {PERPEX__INSUFFICIENT_COLLATERAL} error
+    └── when collateral is greater than computed position fee
+        ├── when resulting position is liquidatable
+        │   └── it should revert with {PERPEX__LIQUIDATABLE_POSITION} error
+        └── when resulting position is not liquidatable
+            ├── it should create a new position with expected values
+            ├── it should increase total open interest for token and side
+            ├── it should emit the {PositionOpened} event
+            ├── it should call {reserveAssets} on pool with expected assets amount
+            ├── it should transfer the computed position fee from user to pool
+            └── it should transfer net collateral from user to perpex

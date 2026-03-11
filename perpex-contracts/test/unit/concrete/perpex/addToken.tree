@@ -1,0 +1,14 @@
+addToken.t.sol
+├── when caller is not the owner
+│   └── it should revert with {OwnableUnauthorizedAccount} error
+└── when caller is the owner
+    ├── when token is the zero address
+    │   └── it should revert with {PERPEX__ZERO_ADDRESS} error
+    ├── when oracle is the zero address
+    │   └── it should revert with {PERPEX__ZERO_ADDRESS} error
+    ├── when token is already allowed
+    │   └── it should revert with {PERPEX__INVALID_TOKEN} error
+    └── when token and oracle are valid and token is not allowed yet
+        ├── it should add the new token to the list of allowed tokens
+        ├── it should add the corresponding oracle to the list of oracles
+        └── it should emit the {TokenAdded} event

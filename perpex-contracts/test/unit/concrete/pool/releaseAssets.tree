@@ -1,0 +1,11 @@
+releaseAssets.t.sol
+├── when caller does not have the {PERPEX_ROLE}
+│   └── it should revert with {AccessControlUnauthorizedAccount} error
+└── when caller has {PERPEX_ROLE}
+    ├── when assets is zero
+    │   └── it should revert with {POOL__INVALID_RELEASE_AMOUNT} error
+    ├── when assets exceeds the current reserved assets
+    │   └── it should revert with {POOL__INVALID_RELEASE_AMOUNT} error
+    └── when assets is valid
+        ├── it should decrease the reserved assets
+        └── it should emit the {AssetsReleased} event

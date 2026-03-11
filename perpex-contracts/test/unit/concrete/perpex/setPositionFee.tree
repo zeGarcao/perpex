@@ -1,0 +1,9 @@
+setPositionFee.t.sol
+├── when caller is not the owner
+│   └── it should revert with {OwnableUnauthorizedAccount} error
+└── when caller is the owner
+    ├── when the new position fee is zero
+    │   └── it should revert with {PERPEX__INVALID_POSITION_FEE} error
+    └── when the new position fee is not zero
+        ├── it should update the position fee
+        └── it should emit the {PositionFeeUpdated} event

@@ -1,0 +1,9 @@
+setMaxUtilization.t.sol
+├── when caller does not have the {ADMIN_ROLE}
+│   └── it should revert with {AccessControlUnauthorizedAccount} error
+└── when caller has {ADMIN_ROLE}
+    ├── when the new max utilization exceeds {MAX_UTILIZATION}
+    │   └── it should revert with {POOL__INVALID_MAX_UTILIZATION} error
+    └── when the new max utilization does not exceed {MAX_UTILIZATION}
+        ├── it should update the max utilization
+        └── it should emit the {MaxUtilizationUpdated} event

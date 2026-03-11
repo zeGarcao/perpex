@@ -1,0 +1,10 @@
+increasePositionCollateral.t.sol
+├── when caller is not the position owner
+│   └── it should revert with {PERPEX__NOT_POSITION_OWNER} error
+└── when caller is the position owner
+    ├── when position is already closed
+    │   └── it should revert with {PERPEX__POSITION_ALREADY_CLOSED} error
+    └── when position is open
+        ├── it should increase position collateral by collateral amount
+        ├── it should emit the {PositionCollateralIncreased} event
+        └── it should transfer collateral from user to perpex

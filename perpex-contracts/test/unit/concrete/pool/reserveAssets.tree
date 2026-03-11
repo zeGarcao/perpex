@@ -1,0 +1,12 @@
+reserveAssets.t.sol
+├── when caller does not have the {PERPEX_ROLE}
+│   └── it should revert with {AccessControlUnauthorizedAccount} error
+└── when caller has {PERPEX_ROLE}
+    ├── when assets is zero
+    │   └── it should revert with {POOL__INVALID_RESERVE_AMOUNT} error
+    └── when assets is not zero
+        ├── when reserving would exceed max utilization
+        │   └── it should revert with {POOL__MAX_UTILIZATION_EXCEEDED} error
+        └── when reserving would not exceed max utilization
+            ├── it should increase the reserved assets
+            └── it should emit the {AssetsReserved} event

@@ -1,0 +1,12 @@
+setPerpex.t.sol
+├── when caller does not have the {ADMIN_ROLE}
+│   └── it should revert with {AccessControlUnauthorizedAccount} error
+└── when caller has {ADMIN_ROLE}
+    ├── when the new perpex contract address is the zero address
+    │   └── it should revert with {POOL__ZERO_ADDRESS} error
+    └── when the new perpex contract address is not the zero address
+        ├── it should update the perpex contract address
+        ├── it should revoke the {PERPEX_ROLE} to the previous perpex contract address
+        ├── it should grant the {PERPEX_ROLE} to the new perpex contract address
+        └── it should emit the {PerpexUpdated} event
+                

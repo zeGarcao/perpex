@@ -1,0 +1,10 @@
+removeToken.t.sol
+├── when caller is not the owner
+│   └── it should revert with {OwnableUnauthorizedAccount} error
+└── when caller is the owner
+    ├── when token is not allowed
+    │   └── it should revert with {PERPEX__INVALID_TOKEN} error
+    └── when token is allowed
+        ├── it should remove the token from the list of allowed tokens
+        ├── it should remove the corresponding oracle from the list of oracles
+        └── it should emit the {TokenRemoved} event

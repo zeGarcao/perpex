@@ -1,0 +1,9 @@
+setPool.t.sol
+├── when caller is not the owner
+│   └── it should revert with {OwnableUnauthorizedAccount} error
+└── when caller is the owner
+    ├── when the new pool address is the zero address
+    │   └── it should revert with {PERPEX__ZERO_ADDRESS} error
+    └── when the new pool address is not the zero address
+        ├── it should update the pool contract address
+        └── it should emit the {PoolUpdated} event

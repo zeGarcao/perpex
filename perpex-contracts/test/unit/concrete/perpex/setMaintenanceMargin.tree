@@ -1,0 +1,9 @@
+setMaintenanceMargin.t.sol
+├── when caller is not the owner
+│   └── it should revert with {OwnableUnauthorizedAccount} error
+└── when caller is the owner
+    ├── when the new maintenance margin is zero
+    │   └── it should revert with {PERPEX__INVALID_MAINTENANCE_MARGIN} error
+    └── when the new maintenance margin is not zero
+        ├── it should update the maintenance margin
+        └── it should emit the {MaintenanceMarginUpdated} event

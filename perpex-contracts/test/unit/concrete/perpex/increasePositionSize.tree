@@ -1,0 +1,23 @@
+increasePositionSize.t.sol
+├── when caller is not the position owner
+│   └── it should revert with {PERPEX__NOT_POSITION_OWNER} error
+└── when caller is the position owner
+    ├── when position is already closed
+    │   └── it should revert with {PERPEX__POSITION_ALREADY_CLOSED} error
+    └── when position is open
+        ├── when new size is less than or equal to current size
+        │   └── it should revert with {PERPEX__INVALID_POSITION_SIZE} error
+        └── when new size is greater than current size
+            ├── when current collateral is less than computed position fee for size delta
+            │   └── it should revert with {PERPEX__INSUFFICIENT_COLLATERAL} error
+            └── when current collateral is greater than or equal to computed position fee for size delta
+                ├── when resulting position is liquidatable
+                │   └── it should revert with {PERPEX__LIQUIDATABLE_POSITION} error
+                └── when resulting position is not liquidatable
+                    ├── it should update position size
+                    ├── it should decrease position collateral by computed position fee
+                    ├── it should increase position size in tokens by computed size delta in tokens
+                    ├── it should increase total open interest for token and side
+                    ├── it should emit the {PositionSizeIncreased} event
+                    ├── it should call {reserveAssets} on pool with expected reserve amount for size delta
+                    └── it should transfer the computed position fee from perpex to pool
