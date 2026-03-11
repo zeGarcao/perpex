@@ -39,28 +39,16 @@ interface IPerpex {
     event PositionCollateralIncreased(bytes32 indexed id, uint256 amount);
 
     /**
-     * @notice Emitted when the minimum leverage is updated
-     * @param minLeverage The new minimum leverage value
+     * @notice Emitted when the maintenance margin requirement is updated
+     * @param maintenanceMargin The new maintenance margin requirement
      */
-    event MinLeverageUpdated(uint256 minLeverage);
-
-    /**
-     * @notice Emitted when the maximum leverage is updated
-     * @param maxLeverage The new maximum leverage value
-     */
-    event MaxLeverageUpdated(uint256 maxLeverage);
+    event MaintenanceMarginUpdated(uint256 maintenanceMargin);
 
     /**
      * @notice Emitted when the position fee is updated
      * @param positionFee The new position fee
      */
     event PositionFeeUpdated(uint256 positionFee);
-
-    /**
-     * @notice Emitted when the liquidation threshold is updated
-     * @param liquidationThreshold The new liquidation threshold
-     */
-    event LiquidationThresholdUpdated(uint256 liquidationThreshold);
 
     /**
      * @notice Emitted when a new token is added to the allowed trading tokens
@@ -91,14 +79,11 @@ interface IPerpex {
     /// @notice Thrown when an invalid token address is provided
     error PERPEX__INVALID_TOKEN();
 
-    /// @notice Thrown when the minimum leverage value is invalid
-    error PERPEX__INVALID_MIN_LEVERAGE();
+    /// @notice Thrown when the maintenance margin requirement is invalid
+    error PERPEX__INVALID_MAINTENANCE_MARGIN();
 
-    /// @notice Thrown when the maximum leverage value is invalid
-    error PERPEX__INVALID_MAX_LEVERAGE();
-
-    /// @notice Thrown when the liquidation threshold is invalid
-    error PERPEX__INVALID_LIQUIDATION_THRESHOLD();
+    /// @notice Thrown when the position fee is invalid
+    error PERPEX__INVALID_POSITION_FEE();
 
     /// @notice Thrown when attempting to trade a token that is not allowed
     error PERPEX__TOKEN_NOT_ALLOWED();
@@ -204,4 +189,17 @@ interface IPerpex {
      * @return The total open interest in USD value (18 decimals)
      */
     function totalOpenInterest() external view returns (uint256);
+
+    /**
+     * @notice Checks if a token is allowed for trading
+     * @param token The address of the token to check
+     * @return True if the token is allowed, false otherwise
+     */
+    function isAllowedToken(address token) external view returns (bool);
+
+    /**
+     * @notice Returns the maximum leverage allowed based on the maintenance margin
+     * @return The maximum leverage (18 decimals)
+     */
+    function maxLeverage() external view returns (uint256);
 }

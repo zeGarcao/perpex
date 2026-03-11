@@ -21,13 +21,6 @@ contract Perpex is IPerpex, Ownable {
     using EnumerableSet for EnumerableSet.AddressSet;
 
     //////////////////////////////////////////////////////////////
-    //                        CONSTANTS                         //
-    //////////////////////////////////////////////////////////////
-
-    /// @notice Maximum allowed liquidation threshold (85%)
-    uint256 private constant MAX_LIQUIDATION_THRESHOLD = 0.85e18;
-
-    //////////////////////////////////////////////////////////////
     //                     STATE VARIABLES                      //
     //////////////////////////////////////////////////////////////
 
@@ -35,31 +28,25 @@ contract Perpex is IPerpex, Ownable {
     address private _usdc;
 
     /// @notice Address of the liquidity pool contract
-    address private _pool;
+    address public pool;
 
     /// @notice Nonce for generating unique position IDs
     uint256 private _nonce;
 
-    /// @notice Minimum allowed leverage (18 decimals)
-    uint256 private _minLeverage;
-
-    /// @notice Maximum allowed leverage (18 decimals)
-    uint256 private _maxLeverage;
+    /// @notice Maintenance margin requirement (18 decimals)
+    uint256 public maintenanceMargin;
 
     /// @notice Fee charged for position management (18 decimals)
-    uint256 private _positionFee;
-
-    /// @notice Threshold at which positions become liquidatable (18 decimals)
-    uint256 private _liquidationThreshold;
+    uint256 public positionFee;
 
     /// @notice Mapping of token addresses to their Chronicle oracle addresses
-    mapping(address token => address oracle) private _oracles;
+    mapping(address token => address oracle) public oracles;
 
     /// @notice Mapping of position IDs to position data
-    mapping(bytes32 id => Position position) private _positions;
+    mapping(bytes32 id => Position position) public positions;
 
     /// @notice Mapping of tokens and sides to open interest data
-    mapping(address token => mapping(PositionSide side => OpenInterest openInterest)) private _openInterests;
+    mapping(address token => mapping(PositionSide side => OpenInterest openInterest)) public openInterests;
 
     /// @notice Set of tokens allowed for trading
     EnumerableSet.AddressSet private _allowedTokens;
@@ -72,50 +59,42 @@ contract Perpex is IPerpex, Ownable {
      * @notice Initializes the Perpex contract with configuration parameters
      * @param usdc Address of the USDC token contract
      * @param usdcOracle Address of the USDC Chronicle oracle
-     * @param pool Address of the liquidity pool contract
-     * @param minLeverage Minimum allowed leverage (18 decimals)
-     * @param maxLeverage Maximum allowed leverage (18 decimals)
-     * @param positionFee Fee for position management (18 decimals)
-     * @param liquidationThreshold Threshold for position liquidation (18 decimals)
-     * @param allowedTokens Array of token addresses allowed for trading
-     * @param oracles Array of Chronicle oracle addresses for the allowed tokens
+     * @param pool_ Address of the liquidity pool contract
+     * @param maintenanceMargin_ Maintenance margin requirement (18 decimals)
+     * @param positionFee_ Fee for position management (18 decimals)
+     * @param allowedTokens_ Array of token addresses allowed for trading
+     * @param oracles_ Array of Chronicle oracle addresses for the allowed tokens
      */
     constructor(
         address usdc,
         address usdcOracle,
-        address pool,
-        uint256 minLeverage,
-        uint256 maxLeverage,
-        uint256 positionFee,
-        uint256 liquidationThreshold,
-        address[] memory allowedTokens,
-        address[] memory oracles
+        address pool_,
+        uint256 maintenanceMargin_,
+        uint256 positionFee_,
+        address[] memory allowedTokens_,
+        address[] memory oracles_
     ) Ownable(msg.sender) {
         require(usdc != address(0), PERPEX__ZERO_ADDRESS());
         require(usdcOracle != address(0), PERPEX__ZERO_ADDRESS());
-        require(pool != address(0), PERPEX__ZERO_ADDRESS());
-        require(minLeverage != 0, PERPEX__INVALID_MIN_LEVERAGE());
-        require(maxLeverage > minLeverage, PERPEX__INVALID_MAX_LEVERAGE());
-        require(liquidationThreshold <= MAX_LIQUIDATION_THRESHOLD, PERPEX__INVALID_LIQUIDATION_THRESHOLD());
+        require(pool_ != address(0), PERPEX__ZERO_ADDRESS());
+        require(maintenanceMargin_ != 0, PERPEX__INVALID_MAINTENANCE_MARGIN());
 
         _usdc = usdc;
-        _oracles[usdc] = usdcOracle;
-        _pool = pool;
-        _minLeverage = minLeverage;
-        _maxLeverage = maxLeverage;
-        _positionFee = positionFee;
-        _liquidationThreshold = liquidationThreshold;
+        oracles[usdc] = usdcOracle;
+        pool = pool_;
+        maintenanceMargin = maintenanceMargin_;
+        positionFee = positionFee_;
 
         address token;
         address oracle;
-        for (uint256 i = 0; i < allowedTokens.length; i++) {
-            token = allowedTokens[i];
-            oracle = oracles[i];
+        for (uint256 i = 0; i < allowedTokens_.length; i++) {
+            token = allowedTokens_[i];
+            oracle = oracles_[i];
             require(token != address(0), PERPEX__ZERO_ADDRESS());
             require(oracle != address(0), PERPEX__ZERO_ADDRESS());
             require(_allowedTokens.add(token), PERPEX__INVALID_TOKEN());
 
-            _oracles[token] = oracle;
+            oracles[token] = oracle;
         }
     }
 
@@ -125,60 +104,34 @@ contract Perpex is IPerpex, Ownable {
 
     /**
      * @notice Updates the pool contract address
-     * @param pool New pool address
+     * @param pool_ New pool address
      */
-    function setPool(address pool) external onlyOwner {
-        require(pool != address(0), PERPEX__ZERO_ADDRESS());
+    function setPool(address pool_) external onlyOwner {
+        require(pool_ != address(0), PERPEX__ZERO_ADDRESS());
 
-        _pool = pool;
+        pool = pool_;
 
-        emit PoolUpdated(pool);
+        emit PoolUpdated(pool_);
     }
 
-    /**
-     * @notice Updates the minimum leverage requirement
-     * @param minLeverage New minimum leverage value (18 decimals)
-     */
-    function setMinLeverage(uint256 minLeverage) external onlyOwner {
-        require(minLeverage != 0 && minLeverage < _maxLeverage, PERPEX__INVALID_MIN_LEVERAGE());
+    function setMaintenanceMargin(uint256 maintenanceMargin_) external onlyOwner {
+        require(maintenanceMargin_ != 0, PERPEX__INVALID_MAINTENANCE_MARGIN());
 
-        _minLeverage = minLeverage;
+        maintenanceMargin = maintenanceMargin_;
 
-        emit MinLeverageUpdated(minLeverage);
-    }
-
-    /**
-     * @notice Updates the maximum leverage allowed
-     * @param maxLeverage New maximum leverage value (18 decimals)
-     */
-    function setMaxLeverage(uint256 maxLeverage) external onlyOwner {
-        require(maxLeverage > _minLeverage, PERPEX__INVALID_MAX_LEVERAGE());
-
-        _maxLeverage = maxLeverage;
-
-        emit MaxLeverageUpdated(maxLeverage);
-    }
-
-    /**
-     * @notice Updates the liquidation threshold
-     * @param liquidationThreshold New liquidation threshold (18 decimals, max 80%)
-     */
-    function setLiquidationThreshold(uint256 liquidationThreshold) external onlyOwner {
-        require(liquidationThreshold <= MAX_LIQUIDATION_THRESHOLD, PERPEX__INVALID_LIQUIDATION_THRESHOLD());
-
-        _liquidationThreshold = liquidationThreshold;
-
-        emit LiquidationThresholdUpdated(liquidationThreshold);
+        emit MaintenanceMarginUpdated(maintenanceMargin_);
     }
 
     /**
      * @notice Updates the position fee
-     * @param positionFee New position fee (18 decimals)
+     * @param positionFee_ New position fee (18 decimals)
      */
-    function setPositionFee(uint256 positionFee) external onlyOwner {
-        _positionFee = positionFee;
+    function setPositionFee(uint256 positionFee_) external onlyOwner {
+        require(positionFee_ != 0, PERPEX__INVALID_POSITION_FEE());
 
-        emit PositionFeeUpdated(positionFee);
+        positionFee = positionFee_;
+
+        emit PositionFeeUpdated(positionFee_);
     }
 
     /**
@@ -191,7 +144,7 @@ contract Perpex is IPerpex, Ownable {
         require(oracle != address(0), PERPEX__ZERO_ADDRESS());
         require(_allowedTokens.add(token), PERPEX__INVALID_TOKEN());
 
-        _oracles[token] = oracle;
+        oracles[token] = oracle;
 
         emit TokenAdded(token, oracle);
     }
@@ -203,7 +156,7 @@ contract Perpex is IPerpex, Ownable {
     function removeToken(address token) external onlyOwner {
         require(_allowedTokens.remove(token), PERPEX__INVALID_TOKEN());
 
-        delete _oracles[token];
+        delete oracles[token];
 
         emit TokenRemoved(token);
     }
@@ -217,18 +170,14 @@ contract Perpex is IPerpex, Ownable {
         external
         returns (bytes32 id)
     {
-        require(_allowedTokens.contains(token), PERPEX__TOKEN_NOT_ALLOWED());
+        require(_isAllowedToken(token), PERPEX__TOKEN_NOT_ALLOWED());
 
-        uint256 usdcPriceInUsd = IChronicleOracle(_oracles[_usdc]).read();
-        uint256 positionFee = _computePositionFee(size, usdcPriceInUsd);
-        require(positionFee != 0, PERPEX__INVALID_POSITION_SIZE());
-        require(collateral > positionFee, PERPEX__INSUFFICIENT_COLLATERAL());
+        uint256 usdcPriceInUsd = IChronicleOracle(oracles[_usdc]).read();
+        uint256 positionFee_ = _computePositionFee(size, usdcPriceInUsd);
+        require(collateral > positionFee_, PERPEX__INSUFFICIENT_COLLATERAL());
 
-        uint256 netCollateral = collateral - positionFee;
-        uint256 leverage = _computeLeverage(size, netCollateral, usdcPriceInUsd);
-        require(leverage >= _minLeverage && leverage <= _maxLeverage, PERPEX__LEVERAGE_OUT_OF_BOUNDS());
-
-        uint256 tokenPriceInUsd = IChronicleOracle(_oracles[token]).read();
+        uint256 netCollateral = collateral - positionFee_;
+        uint256 tokenPriceInUsd = IChronicleOracle(oracles[token]).read();
         uint256 sizeInTokens = _computeSizeInTokens(size, tokenPriceInUsd, ERC20(token).decimals(), side);
 
         Position memory position = Position({
@@ -241,60 +190,57 @@ contract Perpex is IPerpex, Ownable {
             isOpen: true
         });
 
-        id = keccak256(abi.encode(msg.sender, position, block.chainid, ++_nonce));
-        _positions[id] = position;
+        require(!_isPositionLiquidatable(position, usdcPriceInUsd, tokenPriceInUsd), PERPEX__LIQUIDATABLE_POSITION());
 
-        _openInterests[token][side].value += size;
-        _openInterests[token][side].tokens += sizeInTokens;
+        id = keccak256(abi.encode(msg.sender, position, block.chainid, ++_nonce));
+        positions[id] = position;
+
+        openInterests[token][side].value += size;
+        openInterests[token][side].tokens += sizeInTokens;
 
         emit PositionOpened(id, msg.sender);
 
-        IPool(_pool).reserveAssets(FixedPointMathLib.mulDivUp(size, 1e6, usdcPriceInUsd));
-        IERC20(_usdc).safeTransferFrom(msg.sender, _pool, positionFee);
+        IPool(pool).reserveAssets(FixedPointMathLib.mulDivUp(size, 1e6, usdcPriceInUsd));
+        IERC20(_usdc).safeTransferFrom(msg.sender, pool, positionFee_);
         IERC20(_usdc).safeTransferFrom(msg.sender, address(this), netCollateral);
     }
 
     /// @inheritdoc IPerpex
     function increasePositionSize(bytes32 id, uint256 newSize) external {
-        Position storage position = _positions[id];
+        Position storage position = positions[id];
         require(msg.sender == position.owner, PERPEX__NOT_POSITION_OWNER());
         require(position.isOpen, PERPEX__POSITION_ALREADY_CLOSED());
         require(newSize > position.size, PERPEX__INVALID_POSITION_SIZE());
 
         uint256 sizeDelta = newSize - position.size;
 
-        uint256 usdcPriceInUsd = IChronicleOracle(_oracles[_usdc]).read();
-        uint256 positionFee = _computePositionFee(sizeDelta, usdcPriceInUsd);
-        require(positionFee != 0, PERPEX__INVALID_POSITION_SIZE());
-        require(position.collateral > positionFee, PERPEX__INSUFFICIENT_COLLATERAL());
-
-        uint256 netCollateral = position.collateral - positionFee;
-        uint256 leverage = _computeLeverage(newSize, netCollateral, usdcPriceInUsd);
-        require(leverage >= _minLeverage && leverage <= _maxLeverage, PERPEX__LEVERAGE_OUT_OF_BOUNDS());
+        uint256 usdcPriceInUsd = IChronicleOracle(oracles[_usdc]).read();
+        uint256 positionFee_ = _computePositionFee(sizeDelta, usdcPriceInUsd);
+        require(position.collateral >= positionFee_, PERPEX__INSUFFICIENT_COLLATERAL());
 
         address positionToken = position.token;
-        uint256 tokenPriceInUsd = IChronicleOracle(_oracles[positionToken]).read();
+        uint256 tokenPriceInUsd = IChronicleOracle(oracles[positionToken]).read();
         uint256 sizeInTokens =
             _computeSizeInTokens(sizeDelta, tokenPriceInUsd, ERC20(positionToken).decimals(), position.side);
 
         position.size = newSize;
-        position.collateral = netCollateral;
+        position.collateral -= positionFee_;
         position.sizeInTokens += sizeInTokens;
 
-        _openInterests[positionToken][position.side].value += sizeDelta;
-        _openInterests[positionToken][position.side].tokens += sizeInTokens;
+        openInterests[positionToken][position.side].value += sizeDelta;
+        openInterests[positionToken][position.side].tokens += sizeInTokens;
 
         require(!_isPositionLiquidatable(position, usdcPriceInUsd, tokenPriceInUsd), PERPEX__LIQUIDATABLE_POSITION());
 
         emit PositionSizeIncreased(id, sizeDelta);
 
-        IPool(_pool).reserveAssets(FixedPointMathLib.mulDivUp(sizeDelta, 1e6, usdcPriceInUsd));
-        IERC20(_usdc).safeTransfer(_pool, positionFee);
+        IPool(pool).reserveAssets(FixedPointMathLib.mulDivUp(sizeDelta, 1e6, usdcPriceInUsd));
+        IERC20(_usdc).safeTransfer(pool, positionFee_);
     }
 
     /// @inheritdoc IPerpex
     function increasePositionCollateral(bytes32 id, uint256 collateral) external {
-        Position storage position = _positions[id];
+        Position storage position = positions[id];
         require(msg.sender == position.owner, PERPEX__NOT_POSITION_OWNER());
         require(position.isOpen, PERPEX__POSITION_ALREADY_CLOSED());
 
@@ -313,10 +259,10 @@ contract Perpex is IPerpex, Ownable {
     function totalPnL() external view returns (int256 pnl) {
         for (uint256 i = 0; i < _allowedTokens.length(); ++i) {
             address token = _allowedTokens.at(i);
-            uint256 tokenPriceInUsd = IChronicleOracle(_oracles[token]).read();
+            uint256 tokenPriceInUsd = IChronicleOracle(oracles[token]).read();
 
-            OpenInterest memory longOi = _openInterests[token][PositionSide.LONG];
-            OpenInterest memory shortOi = _openInterests[token][PositionSide.SHORT];
+            OpenInterest memory longOi = openInterests[token][PositionSide.LONG];
+            OpenInterest memory shortOi = openInterests[token][PositionSide.SHORT];
 
             uint256 longAppreciation =
                 FixedPointMathLib.mulWad(longOi.tokens * (10 ** (18 - ERC20(token).decimals())), tokenPriceInUsd);
@@ -332,20 +278,20 @@ contract Perpex is IPerpex, Ownable {
 
     /// @inheritdoc IPerpex
     function positionPnL(bytes32 id) external view returns (int256 pnl) {
-        Position memory position = _positions[id];
+        Position memory position = positions[id];
         require(position.owner != address(0), PERPEX__POSITION_NOT_FOUND());
 
-        uint256 tokenPriceInUsd = IChronicleOracle(_oracles[position.token]).read();
+        uint256 tokenPriceInUsd = IChronicleOracle(oracles[position.token]).read();
         return _computePositionPnL(position, tokenPriceInUsd);
     }
 
     /// @inheritdoc IPerpex
     function isPositionLiquidatable(bytes32 id) external view returns (bool) {
-        Position memory position = _positions[id];
+        Position memory position = positions[id];
         require(position.owner != address(0), PERPEX__POSITION_NOT_FOUND());
 
-        uint256 usdcPriceInUsd = IChronicleOracle(_oracles[_usdc]).read();
-        uint256 tokenPriceInUsd = IChronicleOracle(_oracles[position.token]).read();
+        uint256 usdcPriceInUsd = IChronicleOracle(oracles[_usdc]).read();
+        uint256 tokenPriceInUsd = IChronicleOracle(oracles[position.token]).read();
 
         return _isPositionLiquidatable(position, usdcPriceInUsd, tokenPriceInUsd);
     }
@@ -354,9 +300,19 @@ contract Perpex is IPerpex, Ownable {
     function totalOpenInterest() external view returns (uint256 oi) {
         for (uint256 i = 0; i < _allowedTokens.length(); ++i) {
             address token = _allowedTokens.at(i);
-            oi += _openInterests[token][PositionSide.LONG].value;
-            oi += _openInterests[token][PositionSide.SHORT].value;
+            oi += openInterests[token][PositionSide.LONG].value;
+            oi += openInterests[token][PositionSide.SHORT].value;
         }
+    }
+
+    /// @inheritdoc IPerpex
+    function isAllowedToken(address token) public view returns (bool) {
+        return _isAllowedToken(token);
+    }
+
+    /// @inheritdoc IPerpex
+    function maxLeverage() external view returns (uint256) {
+        return FixedPointMathLib.divWad(1e18, maintenanceMargin);
     }
 
     //////////////////////////////////////////////////////////////
@@ -389,25 +345,9 @@ contract Perpex is IPerpex, Ownable {
      * @param usdcPriceInUsd USDC price from Chronicle oracle (18 decimals)
      * @return positionFee Fee amount in USDC (6 decimals)
      */
-    function _computePositionFee(uint256 size, uint256 usdcPriceInUsd) internal view returns (uint256 positionFee) {
-        uint256 positionFeeInUsd = FixedPointMathLib.mulWadUp(size, _positionFee);
-        positionFee = FixedPointMathLib.mulDivUp(positionFeeInUsd, 1e6, usdcPriceInUsd);
-    }
-
-    /**
-     * @notice Calculates the leverage of a position
-     * @param size Position size in USD value (18 decimals)
-     * @param collateral Collateral amount in USDC (6 decimals)
-     * @param usdcPriceInUsd USDC price from Chronicle oracle (18 decimals)
-     * @return leverage Position leverage (18 decimals)
-     */
-    function _computeLeverage(uint256 size, uint256 collateral, uint256 usdcPriceInUsd)
-        internal
-        pure
-        returns (uint256 leverage)
-    {
-        uint256 collateralInUsd = FixedPointMathLib.mulDiv(collateral, usdcPriceInUsd, 1e6);
-        leverage = FixedPointMathLib.divWadUp(size, collateralInUsd);
+    function _computePositionFee(uint256 size, uint256 usdcPriceInUsd) internal view returns (uint256) {
+        uint256 positionFeeInUsd = FixedPointMathLib.mulWadUp(size, positionFee);
+        return FixedPointMathLib.mulDivUp(positionFeeInUsd, 1e6, usdcPriceInUsd);
     }
 
     /**
@@ -442,16 +382,19 @@ contract Perpex is IPerpex, Ownable {
         view
         returns (bool)
     {
-        int256 pnl = _computePositionPnL(position, tokenPriceInUsd);
-
-        if (pnl >= 0) {
-            return false;
-        }
-
-        uint256 loss = FixedPointMathLib.abs(pnl);
         uint256 collateralInUsd = FixedPointMathLib.mulDiv(position.collateral, usdcPriceInUsd, 1e6);
-        uint256 maxLossAllowed = FixedPointMathLib.mulWad(collateralInUsd, _liquidationThreshold);
+        int256 totalValue = collateralInUsd.toInt256() + _computePositionPnL(position, tokenPriceInUsd);
+        uint256 maintenanceMarginInUsd = FixedPointMathLib.mulWad(position.size, maintenanceMargin);
 
-        return loss > maxLossAllowed;
+        return totalValue < maintenanceMarginInUsd.toInt256();
+    }
+
+    /**
+     * @notice Checks if a token is in the allowed tokens set
+     * @param token The address of the token to check
+     * @return True if the token is allowed, false otherwise
+     */
+    function _isAllowedToken(address token) internal view returns (bool) {
+        return _allowedTokens.contains(token);
     }
 }
