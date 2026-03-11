@@ -38,10 +38,10 @@ contract Pool is IPool, ERC4626, AccessControl {
     address public perpex;
 
     /// @notice Total assets currently reserved for open positions (6 decimals)
-    uint256 private _reservedAssets;
+    uint256 public reservedAssets;
 
     /// @notice Max allowed utilization ratio (18 decimals)
-    uint256 private _maxUtilization;
+    uint256 public maxUtilization;
 
     //////////////////////////////////////////////////////////////
     //                       CONSTRUCTOR                        //
@@ -50,12 +50,12 @@ contract Pool is IPool, ERC4626, AccessControl {
     /**
      * @notice Initializes the pool vault and role permissions
      * @param asset_ Address of the vault underlying asset (USDC)
-     * @param maxUtilization Initial max utilization ratio (18 decimals)
+     * @param maxUtilization_ Initial max utilization ratio (18 decimals)
      */
-    constructor(address asset_, uint256 maxUtilization) ERC4626(IERC20(asset_)) ERC20("Perpex Pool Token", "PPT") {
-        require(maxUtilization <= MAX_UTILIZATION, POOL__INVALID_MAX_UTILIZATION());
+    constructor(address asset_, uint256 maxUtilization_) ERC4626(IERC20(asset_)) ERC20("Perpex Pool Token", "PPT") {
+        require(maxUtilization_ <= MAX_UTILIZATION, POOL__INVALID_MAX_UTILIZATION());
 
-        _maxUtilization = maxUtilization;
+        maxUtilization = maxUtilization_;
 
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
         _grantRole(ADMIN_ROLE, msg.sender);
@@ -82,14 +82,14 @@ contract Pool is IPool, ERC4626, AccessControl {
 
     /**
      * @notice Updates the max utilization ratio
-     * @param maxUtilization New max utilization ratio (18 decimals)
+     * @param maxUtilization_ New max utilization ratio (18 decimals)
      */
-    function setMaxUtilization(uint256 maxUtilization) external onlyRole(ADMIN_ROLE) {
-        require(maxUtilization <= MAX_UTILIZATION, POOL__INVALID_MAX_UTILIZATION());
+    function setMaxUtilization(uint256 maxUtilization_) external onlyRole(ADMIN_ROLE) {
+        require(maxUtilization_ <= MAX_UTILIZATION, POOL__INVALID_MAX_UTILIZATION());
 
-        _maxUtilization = maxUtilization;
+        maxUtilization = maxUtilization_;
 
-        emit MaxUtilizationUpdated(maxUtilization);
+        emit MaxUtilizationUpdated(maxUtilization_);
     }
 
     //////////////////////////////////////////////////////////////
@@ -100,7 +100,7 @@ contract Pool is IPool, ERC4626, AccessControl {
     function reserveAssets(uint256 assets) external onlyRole(PERPEX_ROLE) {
         require(assets != 0, POOL__INVALID_RESERVE_AMOUNT());
 
-        _reservedAssets += assets;
+        reservedAssets += assets;
 
         uint256 balance = ERC20(asset()).balanceOf(address(this));
         int256 pnl = IPerpex(perpex).totalPnL();
@@ -111,16 +111,16 @@ contract Pool is IPool, ERC4626, AccessControl {
             balance = pnlScaled >= balance ? 0 : balance - pnlScaled;
         }
 
-        require(_reservedAssets <= FixedPointMathLib.mulWad(balance, _maxUtilization), POOL__MAX_UTILIZATION_EXCEEDED());
+        require(reservedAssets <= FixedPointMathLib.mulWad(balance, maxUtilization), POOL__MAX_UTILIZATION_EXCEEDED());
 
         emit AssetsReserved(assets);
     }
 
     /// @inheritdoc IPool
     function releaseAssets(uint256 assets) external onlyRole(PERPEX_ROLE) {
-        require(assets != 0 && assets <= _reservedAssets, POOL__INVALID_RELEASE_AMOUNT());
+        require(assets != 0 && assets <= reservedAssets, POOL__INVALID_RELEASE_AMOUNT());
 
-        _reservedAssets -= assets;
+        reservedAssets -= assets;
 
         emit AssetsReleased(assets);
     }
@@ -132,12 +132,12 @@ contract Pool is IPool, ERC4626, AccessControl {
     /// @inheritdoc IPool
     function availableAssets() public view returns (uint256) {
         uint256 balance = ERC20(asset()).balanceOf(address(this));
-        if (_reservedAssets == 0) {
+        if (reservedAssets == 0) {
             return balance;
         }
 
-        uint256 freeAssets = FixedPointMathLib.min(balance - _reservedAssets, totalAssets());
-        uint256 minRequiredAssets = FixedPointMathLib.divWadUp(_reservedAssets, _maxUtilization);
+        uint256 freeAssets = FixedPointMathLib.min(balance - reservedAssets, totalAssets());
+        uint256 minRequiredAssets = FixedPointMathLib.divWadUp(reservedAssets, maxUtilization);
 
         if (freeAssets <= minRequiredAssets) {
             return 0;
