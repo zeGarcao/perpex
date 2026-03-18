@@ -4,7 +4,13 @@ permissions: {}
 
 on:
   push:
+    paths:
+      - 'perpex-contracts/**'
+      - '.github/workflows/test.yml'
   pull_request:
+    paths:
+      - 'perpex-contracts/**'
+      - '.github/workflows/test.yml'
   workflow_dispatch:
 
 env:
